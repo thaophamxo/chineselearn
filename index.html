@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>黑板 · Chinese Learning Tracker</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Architects+Daughter&family=Noto+Serif+SC:wght@400;600&family=Ma+Shan+Zheng&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Hanzi Writer -->
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="min-h-screen">
+
+  <!-- ═══ CHALK DUST PARTICLES ═══ -->
+  <canvas id="chalkCanvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+  <!-- ═══ TOP TRAY / HEADER ═══ -->
+  <header class="chalk-tray relative z-10 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <div class="board-eraser"></div>
+      <div>
+        <h1 class="chalk-title text-3xl">黑板 · Bảng Đen</h1>
+        <p class="chalk-subtitle text-sm opacity-70">Chinese Learning Tracker — Dành cho người Việt</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <!-- Stats pills -->
+      <div class="chalk-stat-pill" id="statTotal">
+        <span class="stat-num" id="totalCount">0</span>
+        <span class="stat-label">từ đã học</span>
+      </div>
+      <div class="chalk-stat-pill accent-yellow" id="statToday">
+        <span class="stat-num" id="todayCount">0</span>
+        <span class="stat-label">hôm nay</span>
+      </div>
+      <!-- Backup buttons -->
+      <button class="chalk-icon-btn" id="exportBtn" title="Xuất dữ liệu (Export JSON)">⬇</button>
+      <button class="chalk-icon-btn" id="importBtn" title="Nhập dữ liệu (Import JSON)">⬆</button>
+      <input type="file" id="importFile" accept=".json" class="hidden" />
+    </div>
+  </header>
+
+  <!-- ═══ NAVIGATION TABS ═══ -->
+  <nav class="chalk-nav relative z-10 flex gap-0 px-6 pt-3">
+    <button class="chalk-tab active" data-tab="add">✏ Thêm từ mới</button>
+    <button class="chalk-tab" data-tab="mylist">📋 Danh sách của tôi</button>
+    <button class="chalk-tab" data-tab="flashcard">🃏 Ôn luyện</button>
+  </nav>
+
+  <!-- ═══ MAIN BOARD ═══ -->
+  <main class="chalk-board relative z-10 mx-6 mb-6 p-0 overflow-hidden">
+
+    <!-- ──────── TAB: ADD WORD ──────── -->
+    <section id="tab-add" class="tab-panel active p-8">
+      <div class="board-section-label">Viết lên bảng — Thêm từ mới</div>
+
+      <div class="flex flex-col lg:flex-row gap-8">
+        <!-- Search / Input area -->
+        <div class="flex-1">
+          <div class="chalk-input-group mb-6">
+            <label class="chalk-label">Nhập chữ Hán / Pinyin</label>
+            <div class="flex gap-3 mt-2">
+              <input type="text" id="searchInput" class="chalk-input flex-1" placeholder="例: 学习, xuéxí, học tập..." />
+              <button id="searchBtn" class="chalk-btn-primary">🔍 Tra cứu</button>
+            </div>
+          </div>
+
+          <!-- Result card (shown after fetch) -->
+          <div id="resultCard" class="chalk-result-card hidden">
+            <div class="result-hanzi" id="resultHanzi">—</div>
+            <div class="result-meta">
+              <div class="result-row">
+                <span class="result-key">Pinyin:</span>
+                <span class="result-val accent-blue" id="resultPinyin">—</span>
+              </div>
+              <div class="result-row">
+                <span class="result-key">Nghĩa (VI):</span>
+                <span class="result-val accent-yellow" id="resultMeaning">—</span>
+              </div>
+              <div class="result-row">
+                <span class="result-key">Hán Việt:</span>
+                <span class="result-val accent-pink" id="resultHanViet">—</span>
+              </div>
+              <div class="result-row">
+                <span class="result-key">Từ loại:</span>
+                <span class="result-val" id="resultType">—</span>
+              </div>
+            </div>
+            <div class="mt-4 flex gap-3">
+              <button id="addToListBtn" class="chalk-btn-primary">📌 Thêm vào danh sách</button>
+              <button id="editResultBtn" class="chalk-btn-secondary">✏ Sửa thủ công</button>
+            </div>
+          </div>
+
+          <!-- Loading state -->
+          <div id="searchLoading" class="hidden flex-col items-center justify-center py-12 gap-4">
+            <div class="chalk-spinner"></div>
+            <p class="chalk-text opacity-60">Đang tra cứu từ điển...</p>
+          </div>
+        </div>
+
+        <!-- Stroke preview area -->
+        <div class="lg:w-72">
+          <div class="board-section-label">Nét bút</div>
+          <div class="stroke-preview-area" id="strokePreviewArea">
+            <div id="strokePreviewWriter" class="mx-auto" style="width:180px;height:180px;"></div>
+            <p class="chalk-text text-center mt-3 opacity-50 text-sm">Tra cứu chữ để xem hoạt ảnh nét bút</p>
+          </div>
+          <button id="previewReplayBtn" class="chalk-btn-secondary w-full mt-3 hidden">▶ Phát lại</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────── TAB: MY LIST ──────── -->
+    <section id="tab-mylist" class="tab-panel p-8">
+      <!-- Filters -->
+      <div class="flex flex-wrap items-center gap-4 mb-6">
+        <div class="board-section-label">Danh sách của tôi</div>
+        <div class="flex gap-3 ml-auto flex-wrap">
+          <select id="filterType" class="chalk-select">
+            <option value="">Tất cả từ loại</option>
+            <option value="名词">名词 Danh từ</option>
+            <option value="动词">动词 Động từ</option>
+            <option value="形容词">形容词 Tính từ</option>
+            <option value="副词">副词 Phó từ</option>
+            <option value="介词">介词 Giới từ</option>
+            <option value="连词">连词 Liên từ</option>
+            <option value="数词">数词 Số từ</option>
+            <option value="量词">量词 Lượng từ</option>
+            <option value="其他">其他 Khác</option>
+          </select>
+          <select id="filterDate" class="chalk-select">
+            <option value="newest">Mới nhất trước</option>
+            <option value="oldest">Cũ nhất trước</option>
+            <option value="today">Hôm nay</option>
+            <option value="week">Tuần này</option>
+          </select>
+          <input type="text" id="filterSearch" class="chalk-input" placeholder="Tìm kiếm..." style="width:160px" />
+        </div>
+      </div>
+
+      <!-- Word list grid -->
+      <div id="wordListGrid" class="word-grid">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Empty state -->
+      <div id="emptyState" class="hidden flex-col items-center justify-center py-20 gap-4">
+        <div class="text-8xl opacity-20" style="font-family:'Ma Shan Zheng',serif">空</div>
+        <p class="chalk-text opacity-50">Chưa có từ nào. Hãy thêm từ đầu tiên của bạn!</p>
+      </div>
+    </section>
+
+    <!-- ──────── TAB: FLASHCARD ──────── -->
+    <section id="tab-flashcard" class="tab-panel p-8">
+      <div class="board-section-label mb-6">Ôn luyện — Flashcard</div>
+
+      <!-- No words state -->
+      <div id="flashcardEmpty" class="hidden flex-col items-center justify-center py-20 gap-4">
+        <div class="text-8xl opacity-20" style="font-family:'Ma Shan Zheng',serif">練</div>
+        <p class="chalk-text opacity-50">Cần ít nhất 1 từ trong danh sách để ôn luyện.</p>
+      </div>
+
+      <!-- Flashcard UI -->
+      <div id="flashcardUI" class="hidden flex-col items-center gap-8">
+        <!-- Progress -->
+        <div class="chalk-progress-bar">
+          <div class="chalk-progress-fill" id="flashProgress"></div>
+        </div>
+        <p class="chalk-text text-sm opacity-60" id="flashCounter">Thẻ 1 / 1</p>
+
+        <!-- Card -->
+        <div class="flashcard-scene" id="flashcardScene">
+          <div class="flashcard" id="flashcard">
+            <!-- Front -->
+            <div class="flashcard-face flashcard-front">
+              <div class="flashcard-hanzi" id="flashFrontHanzi">—</div>
+              <p class="chalk-text text-sm opacity-50 mt-4">Nhấn để lật thẻ</p>
+            </div>
+            <!-- Back -->
+            <div class="flashcard-face flashcard-back">
+              <div class="flashcard-pinyin accent-blue" id="flashBackPinyin">—</div>
+              <div class="flashcard-meaning accent-yellow" id="flashBackMeaning">—</div>
+              <div class="flashcard-hanviet accent-pink" id="flashBackHanViet">—</div>
+              <div class="flashcard-type" id="flashBackType">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex gap-4 items-center">
+          <button class="chalk-btn-secondary" id="flashPrevBtn">← Trước</button>
+          <button class="chalk-btn-primary" id="flashFlipBtn">🔄 Lật thẻ</button>
+          <button class="chalk-btn-secondary" id="flashNextBtn">Tiếp →</button>
+        </div>
+        <button class="chalk-btn-secondary text-sm opacity-60" id="flashShuffleBtn">🔀 Xáo trộn</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══ WORD DETAIL MODAL ═══ -->
+  <div id="wordDetailModal" class="chalk-modal-overlay hidden">
+    <div class="chalk-modal">
+      <button class="modal-close-btn" id="modalCloseBtn">✕</button>
+      <div class="modal-hanzi" id="modalHanzi">—</div>
+
+      <!-- Stroke animation -->
+      <div class="flex justify-center my-4">
+        <div id="modalStrokeWriter" style="width:200px;height:200px;"></div>
+      </div>
+      <button class="chalk-btn-secondary w-full mb-4" id="modalReplayBtn">▶ Phát lại hoạt ảnh</button>
+
+      <div class="modal-details">
+        <div class="result-row"><span class="result-key">Pinyin:</span><span class="result-val accent-blue" id="modalPinyin">—</span></div>
+        <div class="result-row"><span class="result-key">Nghĩa (VI):</span><span class="result-val accent-yellow" id="modalMeaning">—</span></div>
+        <div class="result-row"><span class="result-key">Hán Việt:</span><span class="result-val accent-pink" id="modalHanViet">—</span></div>
+        <div class="result-row"><span class="result-key">Từ loại:</span><span class="result-val" id="modalType">—</span></div>
+        <div class="result-row"><span class="result-key">Ngày thêm:</span><span class="result-val opacity-60" id="modalDate">—</span></div>
+      </div>
+      <button class="chalk-btn-danger w-full mt-4" id="modalDeleteBtn">🗑 Xóa khỏi danh sách</button>
+    </div>
+  </div>
+
+  <!-- ═══ MANUAL ENTRY MODAL ═══ -->
+  <div id="manualModal" class="chalk-modal-overlay hidden">
+    <div class="chalk-modal">
+      <button class="modal-close-btn" id="manualCloseBtn">✕</button>
+      <h2 class="chalk-title text-xl mb-1">✏ Nhập thủ công</h2>
+      <p class="chalk-text opacity-60 text-sm mb-6">Không tìm thấy từ tự động. Hãy điền thông tin thủ công.</p>
+
+      <div class="flex flex-col gap-4">
+        <div>
+          <label class="chalk-label">Chữ Hán <span class="text-red-400">*</span></label>
+          <input type="text" id="manualHanzi" class="chalk-input w-full mt-1" placeholder="例: 学习" />
+        </div>
+        <div>
+          <label class="chalk-label">Pinyin <span class="text-red-400">*</span></label>
+          <input type="text" id="manualPinyin" class="chalk-input w-full mt-1" placeholder="例: xuéxí" />
+        </div>
+        <div>
+          <label class="chalk-label">Nghĩa tiếng Việt <span class="text-red-400">*</span></label>
+          <input type="text" id="manualMeaning" class="chalk-input w-full mt-1" placeholder="例: học tập" />
+        </div>
+        <div>
+          <label class="chalk-label">Hán Việt</label>
+          <input type="text" id="manualHanViet" class="chalk-input w-full mt-1" placeholder="例: Học Tập" />
+        </div>
+        <div>
+          <label class="chalk-label">Từ loại</label>
+          <select id="manualType" class="chalk-select w-full mt-1">
+            <option value="其他">其他 Khác</option>
+            <option value="名词">名词 Danh từ</option>
+            <option value="动词">动词 Động từ</option>
+            <option value="形容词">形容词 Tính từ</option>
+            <option value="副词">副词 Phó từ</option>
+            <option value="介词">介词 Giới từ</option>
+            <option value="连词">连词 Liên từ</option>
+            <option value="数词">数词 Số từ</option>
+            <option value="量词">量词 Lượng từ</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button class="chalk-btn-primary flex-1" id="manualSaveBtn">📌 Thêm vào danh sách</button>
+        <button class="chalk-btn-secondary" id="manualCancelBtn">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TOAST NOTIFICATION ═══ -->
+  <div id="toast" class="chalk-toast hidden"></div>
+
+  <!-- App Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
