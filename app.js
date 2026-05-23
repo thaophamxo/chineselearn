@@ -1,778 +1,546 @@
-/* ═══════════════════════════════════════════════════════════════
-   CHINESE LEARNING TRACKER — app.js
-   Vanilla JS SPA: LocalStorage, Hanzii API, HanziWriter, Flashcards
-   ═══════════════════════════════════════════════════════════════ */
+/**
+ * SỔ TAY HÁN NGỮ — Chalkboard Edition
+ * app.js · Vietnamese Chinese Learner Tracker
+ * ─────────────────────────────────────────────
+ * Vanilla JS SPA — no framework dependencies.
+ * Persists to localStorage. Works fully offline.
+ */
 
 'use strict';
 
-// ─────────────────────────────────────────────
-// CONSTANTS & STATE
-// ─────────────────────────────────────────────
-const LS_KEY = 'chineseTracker_v1';
-
-let state = {
-  words: [],          // Array of word objects
-  flashIndex: 0,      // Current flashcard index
-  flashOrder: [],     // Shuffled/ordered indices for flashcard
-  isFlipped: false,
-  currentDetailId: null,
-  previewWriter: null,
-  modalWriter: null,
+/* ══════════════════════════════════════════════
+   1. BUILT-IN OFFLINE DICTIONARY
+   (prevents CORS / sandbox issues)
+══════════════════════════════════════════════ */
+const LOCAL_DICT = {
+  "学习": { pinyin: "xuéxí",      hanviet: "học tập",     translation: "học tập, nghiên cứu, học hỏi",       type: "Động từ",  notes: "我努力学习。(Tôi nỗ lực học tập.)" },
+  "你好": { pinyin: "nǐ hǎo",     hanviet: "nhỉ hảo",     translation: "xin chào, chào bạn",                 type: "Cụm từ",   notes: "你好，很高兴认识你。(Xin chào, rất vui được gặp bạn.)" },
+  "谢谢": { pinyin: "xièxie",     hanviet: "tạ tạ",       translation: "cảm ơn",                             type: "Cụm từ",   notes: "谢谢你帮助我。(Cảm ơn bạn đã giúp tôi.)" },
+  "中国": { pinyin: "zhōngguó",   hanviet: "trung quốc",  translation: "Trung Quốc",                         type: "Danh từ",  notes: "我去中国旅游。(Tôi đi du lịch Trung Quốc.)" },
+  "越南": { pinyin: "yuènán",     hanviet: "việt nam",    translation: "Việt Nam",                           type: "Danh từ",  notes: "我是越南人。(Tôi là người Việt Nam.)" },
+  "老师": { pinyin: "lǎoshī",     hanviet: "lão sư",      translation: "giáo viên, thầy cô",                 type: "Danh từ",  notes: "王老师是我们的汉语老师。" },
+  "学生": { pinyin: "xuéshēng",   hanviet: "học sinh",    translation: "học sinh, sinh viên",                type: "Danh từ",  notes: "他是一个好学生。(Cậu ấy là học sinh tốt.)" },
+  "咖啡": { pinyin: "kāfēi",      hanviet: "ca phê",      translation: "cà phê",                             type: "Danh từ",  notes: "我喜欢喝咖啡。(Tôi thích uống cà phê.)" },
+  "苹果": { pinyin: "píngguǒ",    hanviet: "bình quả",    translation: "quả táo; hãng Apple",               type: "Danh từ",  notes: "苹果很好吃。(Táo rất ngon.)" },
+  "喜欢": { pinyin: "xǐhuan",     hanviet: "hỷ hoan",     translation: "thích, yêu thích",                  type: "Động từ",  notes: "我喜欢学习汉语。(Tôi thích học tiếng Trung.)" },
+  "看书": { pinyin: "kànshū",     hanviet: "khán thư",    translation: "đọc sách",                          type: "Động từ",  notes: "晚上我经常看书。(Tối tôi thường đọc sách.)" },
+  "高兴": { pinyin: "gāoxìng",    hanviet: "cao hứng",    translation: "vui mừng, phấn khởi",               type: "Tính từ",  notes: "今天我很高兴。(Hôm nay tôi rất vui.)" },
+  "努力": { pinyin: "nǔlì",       hanviet: "nỗ lực",      translation: "nỗ lực, cố gắng",                   type: "Tính từ",  notes: "大家要努力工作。(Mọi người hãy cố gắng.)" },
+  "时间": { pinyin: "shíjiān",    hanviet: "thời gian",   translation: "thời gian, giờ giấc",               type: "Danh từ",  notes: "我没有时间。(Tôi không có thời gian.)" },
+  "工作": { pinyin: "gōngzuò",    hanviet: "công tác",    translation: "làm việc, công việc",               type: "Động từ",  notes: "他在银行工作。(Anh ấy làm ở ngân hàng.)" },
+  "今天": { pinyin: "jīntiān",    hanviet: "kim thiên",   translation: "hôm nay",                           type: "Danh từ",  notes: "今天天气很好。(Hôm nay thời tiết đẹp.)" },
+  "明天": { pinyin: "míngtiān",   hanviet: "minh thiên",  translation: "ngày mai",                          type: "Danh từ",  notes: "明天我们去北京。(Ngày mai chúng tôi đi Bắc Kinh.)" },
+  "汉语": { pinyin: "hànyǔ",      hanviet: "hán ngữ",     translation: "tiếng Trung, tiếng Hán",            type: "Danh từ",  notes: "汉语不难学习。(Tiếng Trung không khó học.)" },
+  "朋友": { pinyin: "péngyou",    hanviet: "bằng hữu",    translation: "bạn bè",                            type: "Danh từ",  notes: "他是我的好朋友。(Cậu ấy là bạn tốt của tôi.)" },
+  "吃饭": { pinyin: "chīfàn",     hanviet: "cật phạn",    translation: "ăn cơm, ăn bữa",                   type: "Động từ",  notes: "我们去吃饭吧。(Chúng ta đi ăn cơm thôi.)" },
+  "水": {   pinyin: "shuǐ",       hanviet: "thủy",        translation: "nước (uống, nước sông…)",           type: "Danh từ",  notes: "请给我一杯水。(Vui lòng cho tôi một ly nước.)" },
+  "大学": { pinyin: "dàxué",      hanviet: "đại học",     translation: "đại học, trường đại học",           type: "Danh từ",  notes: "他在大学学习。(Anh ấy học ở đại học.)" },
+  "好": {   pinyin: "hǎo",        hanviet: "hảo",         translation: "tốt, hay, giỏi",                   type: "Tính từ",  notes: "你好！(Bạn tốt! / Xin chào!)" },
 };
 
-// ─────────────────────────────────────────────
-// STORAGE
-// ─────────────────────────────────────────────
-function loadFromStorage() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) state.words = JSON.parse(raw);
-  } catch (e) {
-    state.words = [];
-  }
-}
-
-function saveToStorage() {
-  localStorage.setItem(LS_KEY, JSON.stringify(state.words));
-}
-
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
-
-// ─────────────────────────────────────────────
-// CHALK DUST PARTICLE CANVAS
-// ─────────────────────────────────────────────
-function initChalkCanvas() {
-  const canvas = document.getElementById('chalkCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let particles = [];
-
-  function resize() {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  class Particle {
-    constructor() { this.reset(true); }
-    reset(init = false) {
-      this.x    = Math.random() * canvas.width;
-      this.y    = init ? Math.random() * canvas.height : -10;
-      this.size = Math.random() * 1.8 + 0.3;
-      this.vx   = (Math.random() - 0.5) * 0.3;
-      this.vy   = Math.random() * 0.4 + 0.1;
-      this.alpha= Math.random() * 0.35 + 0.05;
-      this.life = Math.random() * 200 + 100;
-      this.age  = init ? Math.random() * this.life : 0;
-    }
-    update() {
-      this.x += this.vx;
-      this.y += this.vy;
-      this.age++;
-      if (this.age > this.life || this.y > canvas.height + 10) this.reset();
-    }
-    draw() {
-      ctx.save();
-      ctx.globalAlpha = this.alpha * Math.sin((this.age / this.life) * Math.PI);
-      ctx.fillStyle = '#f0ece4';
-      ctx.beginPath();
-      ctx.ellipse(this.x, this.y, this.size, this.size * 0.5, Math.random() * Math.PI, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-  }
-
-  for (let i = 0; i < 80; i++) particles.push(new Particle());
-
-  function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    particles.forEach(p => { p.update(); p.draw(); });
-    requestAnimationFrame(animate);
-  }
-  animate();
-}
-
-// ─────────────────────────────────────────────
-// TOAST
-// ─────────────────────────────────────────────
-let toastTimer = null;
-function showToast(msg, type = 'info', duration = 3000) {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.className = `chalk-toast show ${type}`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toast.className = 'chalk-toast hidden';
-  }, duration);
-}
-
-// ─────────────────────────────────────────────
-// TAB NAVIGATION
-// ─────────────────────────────────────────────
-function initTabs() {
-  document.querySelectorAll('.chalk-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.tab;
-      document.querySelectorAll('.chalk-tab').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById(`tab-${tab}`).classList.add('active');
-
-      if (tab === 'mylist') renderWordList();
-      if (tab === 'flashcard') initFlashcard();
-    });
-  });
-}
-
-// ─────────────────────────────────────────────
-// DASHBOARD STATS
-// ─────────────────────────────────────────────
-function updateStats() {
-  const today = new Date().toDateString();
-  const total = state.words.length;
-  const todayCount = state.words.filter(w => new Date(w.addedAt).toDateString() === today).length;
-  document.getElementById('totalCount').textContent = total;
-  document.getElementById('todayCount').textContent = todayCount;
-}
-
-// ─────────────────────────────────────────────
-// HANZII API FETCH
-// ─────────────────────────────────────────────
-const CORS_PROXIES = [
-  'https://api.allorigins.win/get?url=',
-  'https://corsproxy.io/?',
+/* ══════════════════════════════════════════════
+   2. DEFAULT SEED DATA
+══════════════════════════════════════════════ */
+const DEFAULT_WORDS = [
+  { id:"d1", hanzi:"学习", pinyin:"xuéxí",   hanviet:"học tập",   translation:"học tập, học hỏi",         type:"Động từ", dateAdded: todayStr(), status:"review",   notes:"我努力学习汉语。(Tôi nỗ lực học tiếng Trung.)" },
+  { id:"d2", hanzi:"你好", pinyin:"nǐ hǎo",  hanviet:"nhỉ hảo",   translation:"xin chào",                 type:"Cụm từ",  dateAdded: todayStr(), status:"mastered", notes:"Câu chào hỏi thông thường." },
+  { id:"d3", hanzi:"老师", pinyin:"lǎoshī",  hanviet:"lão sư",    translation:"thầy giáo, cô giáo",       type:"Danh từ", dateAdded: yesterday(), status:"review",   notes:"Người dạy học." },
+  { id:"d4", hanzi:"越南", pinyin:"yuènán",  hanviet:"việt nam",  translation:"quốc gia Việt Nam",        type:"Danh từ", dateAdded: yesterday(), status:"mastered", notes:"Tôi yêu quê hương Việt Nam!" },
+  { id:"d5", hanzi:"喜欢", pinyin:"xǐhuan",  hanviet:"hỷ hoan",   translation:"thích, yêu chuộng",        type:"Động từ", dateAdded: yesterday(), status:"review",   notes:"我喜欢学习汉语。" },
 ];
 
-async function fetchHanzii(query) {
-  const encodedQuery = encodeURIComponent(query.trim());
-  const targetUrl = `https://hanzii.net/api/search/${encodedQuery}?type=word&page=1&lang=vi`;
-
-  for (const proxy of CORS_PROXIES) {
-    try {
-      const url = proxy + (proxy.includes('allorigins') ? encodeURIComponent(targetUrl) : targetUrl);
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8000);
-
-      const res = await fetch(url, { signal: ctrl.signal });
-      clearTimeout(timer);
-
-      if (!res.ok) continue;
-      let json = await res.json();
-
-      // allorigins wraps in {contents: "..."}
-      if (json.contents) {
-        try { json = JSON.parse(json.contents); } catch { continue; }
-      }
-
-      return parseHanziiResponse(json, query);
-    } catch (e) {
-      // Try next proxy
-      continue;
-    }
-  }
-  return null; // All proxies failed
+/* ══════════════════════════════════════════════
+   3. DATE HELPERS
+══════════════════════════════════════════════ */
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+function yesterday() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
 }
 
-function parseHanziiResponse(json, originalQuery) {
-  try {
-    // Hanzii response structure (may vary; we handle common shapes)
-    const data = json?.data || json;
-    const results = Array.isArray(data) ? data : (data?.result || data?.words || []);
+/* ══════════════════════════════════════════════
+   4. GLOBAL STATE
+══════════════════════════════════════════════ */
+let words = [];
+let hanziWriterInstance = null;
+let currentFlashcardIndex = 0;
+let isCardFlipped = false;
 
-    if (!results || results.length === 0) return null;
+const STORAGE_KEY = 'chalkboard_hanzinote_v2';
 
-    const item = results[0];
-
-    // Extract pinyin
-    const pinyin = item?.pinyin
-      || item?.pinyins?.[0]
-      || item?.pronunciation
-      || '';
-
-    // Vietnamese meaning
-    const meanings = item?.means || item?.meanings || item?.definitions || [];
-    let meaning = '';
-    let wordType = '其他';
-    let hanViet = item?.hanviet || item?.han_viet || item?.sinovi || '';
-
-    if (Array.isArray(meanings) && meanings.length > 0) {
-      const first = meanings[0];
-      if (typeof first === 'string') {
-        meaning = first;
-      } else if (first?.mean) {
-        meaning = Array.isArray(first.mean) ? first.mean.join(', ') : first.mean;
-        wordType = mapWordType(first?.kind || first?.type || '');
-      } else if (first?.vi) {
-        meaning = first.vi;
-      }
-    }
-
-    const hanzi = item?.word || item?.hanzi || item?.simplified || originalQuery;
-
-    return {
-      hanzi:   hanzi.trim(),
-      pinyin:  pinyin.trim(),
-      meaning: meaning.trim() || '(Không tìm thấy nghĩa)',
-      hanViet: hanViet.trim(),
-      type:    wordType,
-    };
-  } catch (e) {
-    return null;
-  }
-}
-
-function mapWordType(raw) {
-  if (!raw) return '其他';
-  const r = raw.toLowerCase();
-  if (r.includes('noun') || r.includes('名'))         return '名词';
-  if (r.includes('verb') || r.includes('动'))         return '动词';
-  if (r.includes('adj')  || r.includes('形'))         return '形容词';
-  if (r.includes('adv')  || r.includes('副'))         return '副词';
-  if (r.includes('prep') || r.includes('介'))         return '介词';
-  if (r.includes('conj') || r.includes('连'))         return '连词';
-  if (r.includes('num')  || r.includes('数'))         return '数词';
-  if (r.includes('meas') || r.includes('量'))         return '量词';
-  return '其他';
-}
-
-// ─────────────────────────────────────────────
-// SEARCH / ADD WORD TAB
-// ─────────────────────────────────────────────
-let pendingWordData = null;
-
-async function handleSearch() {
-  const query = document.getElementById('searchInput').value.trim();
-  if (!query) { showToast('Vui lòng nhập từ cần tra!', 'error'); return; }
-
-  // Show loading
-  document.getElementById('resultCard').classList.add('hidden');
-  document.getElementById('searchLoading').classList.remove('hidden');
-
-  // Clear old preview
-  clearPreviewWriter();
-
-  const result = await fetchHanzii(query);
-
-  document.getElementById('searchLoading').classList.add('hidden');
-
-  if (result) {
-    pendingWordData = result;
-    displayResult(result);
-    initPreviewWriter(result.hanzi);
-  } else {
-    showToast('Không tìm thấy qua API. Vui lòng nhập thủ công.', 'error');
-    openManualModal(query);
-  }
-}
-
-function displayResult(data) {
-  document.getElementById('resultHanzi').textContent  = data.hanzi   || '—';
-  document.getElementById('resultPinyin').textContent  = data.pinyin  || '—';
-  document.getElementById('resultMeaning').textContent = data.meaning || '—';
-  document.getElementById('resultHanViet').textContent = data.hanViet || '—';
-  document.getElementById('resultType').textContent    = data.type    || '—';
-  document.getElementById('resultCard').classList.remove('hidden');
-}
-
-function addPendingToList() {
-  if (!pendingWordData) return;
-  addWordToList(pendingWordData);
-  document.getElementById('resultCard').classList.add('hidden');
-  document.getElementById('searchInput').value = '';
-  pendingWordData = null;
-}
-
-function addWordToList(data) {
-  // Check duplicate
-  const exists = state.words.find(w => w.hanzi === data.hanzi);
-  if (exists) {
-    showToast(`"${data.hanzi}" đã có trong danh sách rồi!`, 'error');
-    return;
-  }
-  const word = {
-    id:      generateId(),
-    hanzi:   data.hanzi,
-    pinyin:  data.pinyin,
-    meaning: data.meaning,
-    hanViet: data.hanViet,
-    type:    data.type,
-    addedAt: new Date().toISOString(),
-  };
-  state.words.unshift(word);
-  saveToStorage();
-  updateStats();
-  showToast(`✦ Đã thêm "${data.hanzi}" vào danh sách!`, 'success');
-}
-
-// ─────────────────────────────────────────────
-// HANZI WRITER — PREVIEW (ADD TAB)
-// ─────────────────────────────────────────────
-function clearPreviewWriter() {
-  const container = document.getElementById('strokePreviewWriter');
-  container.innerHTML = '';
-  state.previewWriter = null;
-  document.getElementById('previewReplayBtn').classList.add('hidden');
-}
-
-function initPreviewWriter(char) {
-  const firstChar = char.trim()[0];
-  if (!firstChar) return;
-
-  const container = document.getElementById('strokePreviewWriter');
-  container.innerHTML = '';
-
-  try {
-    state.previewWriter = HanziWriter.create('strokePreviewWriter', firstChar, {
-      width:             180,
-      height:            180,
-      padding:           16,
-      strokeColor:       '#f0ece4',
-      radicalColor:      '#7ec8e3',
-      outlineColor:      'rgba(240,236,228,0.12)',
-      drawingColor:      '#f5e642',
-      highlightColor:    '#f4a0b5',
-      showOutline:       true,
-      strokeAnimationSpeed: 0.8,
-      delayBetweenStrokes: 200,
-      renderer:          'svg',
-    });
-    state.previewWriter.animateCharacter();
-    document.getElementById('previewReplayBtn').classList.remove('hidden');
-  } catch (e) {
-    container.innerHTML = `<div class="chalk-text opacity-30 text-center text-sm mt-8">Không có dữ liệu nét bút<br>cho ký tự này</div>`;
-  }
-}
-
-// ─────────────────────────────────────────────
-// WORD LIST RENDERING
-// ─────────────────────────────────────────────
-function renderWordList() {
-  const grid     = document.getElementById('wordListGrid');
-  const empty    = document.getElementById('emptyState');
-  const typeFilter = document.getElementById('filterType').value;
-  const dateFilter = document.getElementById('filterDate').value;
-  const searchFilter = document.getElementById('filterSearch').value.trim().toLowerCase();
-
-  let words = [...state.words];
-
-  // Filter by type
-  if (typeFilter) words = words.filter(w => w.type === typeFilter);
-
-  // Filter by search
-  if (searchFilter) {
-    words = words.filter(w =>
-      w.hanzi.includes(searchFilter) ||
-      w.pinyin.toLowerCase().includes(searchFilter) ||
-      w.meaning.toLowerCase().includes(searchFilter) ||
-      (w.hanViet || '').toLowerCase().includes(searchFilter)
-    );
-  }
-
-  // Filter by date
-  const today = new Date();
-  if (dateFilter === 'today') {
-    words = words.filter(w => new Date(w.addedAt).toDateString() === today.toDateString());
-  } else if (dateFilter === 'week') {
-    const weekAgo = new Date(today - 7 * 86400000);
-    words = words.filter(w => new Date(w.addedAt) >= weekAgo);
-  }
-
-  // Sort
-  if (dateFilter === 'oldest') {
-    words.sort((a, b) => new Date(a.addedAt) - new Date(b.addedAt));
-  } else if (dateFilter !== 'today' && dateFilter !== 'week') {
-    words.sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt));
-  }
-
-  grid.innerHTML = '';
-
-  if (words.length === 0) {
-    empty.classList.remove('hidden');
-    return;
-  }
-  empty.classList.add('hidden');
-
-  const todayStr = today.toDateString();
-
-  words.forEach(word => {
-    const isToday = new Date(word.addedAt).toDateString() === todayStr;
-    const card = document.createElement('div');
-    card.className = `word-card${isToday ? ' today' : ''}`;
-    card.innerHTML = `
-      <div class="word-card-type-badge">${word.type}</div>
-      <div class="word-card-hanzi">${word.hanzi}</div>
-      <div class="word-card-pinyin">${word.pinyin}</div>
-      <div class="word-card-meaning">${word.meaning}</div>
-      <div class="word-card-date">${formatDate(word.addedAt)}</div>
-    `;
-    card.addEventListener('click', () => openWordDetail(word.id));
-    grid.appendChild(card);
-  });
-}
-
-function formatDate(iso) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
-}
-
-// ─────────────────────────────────────────────
-// WORD DETAIL MODAL
-// ─────────────────────────────────────────────
-function openWordDetail(id) {
-  const word = state.words.find(w => w.id === id);
-  if (!word) return;
-
-  state.currentDetailId = id;
-
-  document.getElementById('modalHanzi').textContent   = word.hanzi;
-  document.getElementById('modalPinyin').textContent   = word.pinyin;
-  document.getElementById('modalMeaning').textContent  = word.meaning;
-  document.getElementById('modalHanViet').textContent  = word.hanViet || '—';
-  document.getElementById('modalType').textContent     = word.type;
-  document.getElementById('modalDate').textContent     = formatDate(word.addedAt);
-
-  document.getElementById('wordDetailModal').classList.remove('hidden');
-
-  // Init HanziWriter in modal
-  initModalWriter(word.hanzi[0]);
-}
-
-function initModalWriter(char) {
-  const container = document.getElementById('modalStrokeWriter');
-  container.innerHTML = '';
-  state.modalWriter = null;
-
-  if (!char) return;
-
-  try {
-    state.modalWriter = HanziWriter.create('modalStrokeWriter', char, {
-      width:            200,
-      height:           200,
-      padding:          18,
-      strokeColor:      '#f0ece4',
-      radicalColor:     '#7ec8e3',
-      outlineColor:     'rgba(240,236,228,0.1)',
-      highlightColor:   '#f4a0b5',
-      drawingColor:     '#f5e642',
-      showOutline:      true,
-      strokeAnimationSpeed: 0.9,
-      delayBetweenStrokes: 250,
-      renderer:         'svg',
-    });
-    state.modalWriter.animateCharacter();
-  } catch (e) {
-    container.innerHTML = `<div class="chalk-text opacity-30 text-center text-sm mt-8">Không có dữ liệu<br>nét bút</div>`;
-  }
-}
-
-function closeWordDetail() {
-  document.getElementById('wordDetailModal').classList.add('hidden');
-  state.currentDetailId = null;
-  state.modalWriter = null;
-}
-
-function deleteCurrentWord() {
-  if (!state.currentDetailId) return;
-  const word = state.words.find(w => w.id === state.currentDetailId);
-  if (!word) return;
-
-  if (!confirm(`Xóa từ "${word.hanzi}" khỏi danh sách?`)) return;
-  state.words = state.words.filter(w => w.id !== state.currentDetailId);
-  saveToStorage();
-  updateStats();
-  closeWordDetail();
+/* ══════════════════════════════════════════════
+   5. INITIALISATION
+══════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  initStorage();
   renderWordList();
-  showToast(`Đã xóa "${word.hanzi}"`, 'info');
+  updateStats();
+  setupInitialWriter();
+  setupFlashcardDeck();
+});
+
+function initStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    words = raw ? JSON.parse(raw) : [...DEFAULT_WORDS];
+  } catch {
+    words = [...DEFAULT_WORDS];
+  }
 }
 
-// ─────────────────────────────────────────────
-// MANUAL ENTRY MODAL
-// ─────────────────────────────────────────────
-function openManualModal(prefill = '') {
-  document.getElementById('manualHanzi').value   = prefill;
-  document.getElementById('manualPinyin').value  = '';
-  document.getElementById('manualMeaning').value = '';
-  document.getElementById('manualHanViet').value = '';
-  document.getElementById('manualType').value    = '其他';
-  document.getElementById('manualModal').classList.remove('hidden');
-  setTimeout(() => document.getElementById('manualHanzi').focus(), 100);
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+  updateStats();
 }
 
-function closeManualModal() {
-  document.getElementById('manualModal').classList.add('hidden');
+/* ══════════════════════════════════════════════
+   6. STATS
+══════════════════════════════════════════════ */
+function updateStats() {
+  const total    = words.length;
+  const mastered = words.filter(w => w.status === 'mastered').length;
+  const review   = words.filter(w => w.status === 'review').length;
+  const today    = words.filter(w => w.dateAdded === todayStr()).length;
+  const pct      = total > 0 ? Math.round((mastered / total) * 100) : 0;
+
+  setText('stat-total',        total);
+  setText('stat-today',        today);
+  setText('stat-mastered',     mastered);
+  setText('stat-review',       review);
+  setText('stat-mastered-pct', `${pct}% tỉ lệ hoàn thành`);
+  setText('flashcard-count',   `Chưa thuộc: ${review} từ`);
 }
 
-function saveManualWord() {
-  const hanzi   = document.getElementById('manualHanzi').value.trim();
-  const pinyin  = document.getElementById('manualPinyin').value.trim();
-  const meaning = document.getElementById('manualMeaning').value.trim();
-  const hanViet = document.getElementById('manualHanViet').value.trim();
-  const type    = document.getElementById('manualType').value;
+/* ══════════════════════════════════════════════
+   7. TOAST / CHALK ALERT
+══════════════════════════════════════════════ */
+let _alertTimer = null;
 
-  if (!hanzi || !pinyin || !meaning) {
-    showToast('Vui lòng điền Chữ Hán, Pinyin và Nghĩa!', 'error');
+function showChalkAlert(msg) {
+  const el = document.getElementById('chalk-alert');
+  document.getElementById('alert-message').textContent = msg;
+  el.classList.add('visible');
+
+  clearTimeout(_alertTimer);
+  _alertTimer = setTimeout(() => el.classList.remove('visible'), 3200);
+}
+
+/* ══════════════════════════════════════════════
+   8. FORM HELPERS
+══════════════════════════════════════════════ */
+function getField(id) {
+  return document.getElementById(id)?.value.trim() ?? '';
+}
+function setField(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val ?? '';
+}
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function clearForm() {
+  ['input-hanzi','input-pinyin','input-hanviet','input-translation','input-notes'].forEach(id => setField(id, ''));
+  setField('input-type',   'Danh từ');
+  setField('input-status', 'review');
+}
+
+/* ══════════════════════════════════════════════
+   9. AUTO FETCH (offline dict → API fallback)
+══════════════════════════════════════════════ */
+async function handleAutoFetch() {
+  const query = getField('input-hanzi');
+  if (!query) { showChalkAlert('⚠️ Hãy nhập chữ Hán trước khi tra cứu!'); return; }
+
+  const btn = document.getElementById('btn-search');
+  btn.textContent = '⏳ Đang tra…';
+  btn.disabled = true;
+
+  // 1) Check offline dict
+  if (LOCAL_DICT[query]) {
+    const d = LOCAL_DICT[query];
+    setField('input-pinyin',      d.pinyin);
+    setField('input-hanviet',     d.hanviet);
+    setField('input-translation', d.translation);
+    setField('input-type',        d.type);
+    setField('input-notes',       d.notes);
+    showChalkAlert('✨ Tìm thấy trong từ điển tích hợp!');
+    loadCharacterToWriter(query[0]);
+    resetBtn();
     return;
   }
 
-  addWordToList({ hanzi, pinyin, meaning, hanViet, type });
-  closeManualModal();
-
-  // Preview writer
-  clearPreviewWriter();
-  initPreviewWriter(hanzi);
-
-  // Show result
-  displayResult({ hanzi, pinyin, meaning, hanViet, type });
-  pendingWordData = null;
-}
-
-// ─────────────────────────────────────────────
-// FLASHCARD SYSTEM
-// ─────────────────────────────────────────────
-function initFlashcard() {
-  if (state.words.length === 0) {
-    document.getElementById('flashcardEmpty').classList.remove('hidden');
-    document.getElementById('flashcardUI').classList.add('hidden');
-    return;
-  }
-
-  document.getElementById('flashcardEmpty').classList.add('hidden');
-  document.getElementById('flashcardUI').classList.remove('hidden');
-
-  // Build order
-  state.flashOrder = state.words.map((_, i) => i);
-  state.flashIndex = 0;
-  state.isFlipped  = false;
-
-  renderFlashcard();
-}
-
-function renderFlashcard() {
-  const idx  = state.flashIndex;
-  const order= state.flashOrder;
-  const word = state.words[order[idx]];
-
-  if (!word) return;
-
-  // Reset flip
-  state.isFlipped = false;
-  document.getElementById('flashcard').classList.remove('flipped');
-
-  // Front
-  document.getElementById('flashFrontHanzi').textContent  = word.hanzi;
-
-  // Back
-  document.getElementById('flashBackPinyin').textContent  = word.pinyin  || '—';
-  document.getElementById('flashBackMeaning').textContent = word.meaning || '—';
-  document.getElementById('flashBackHanViet').textContent = word.hanViet || '—';
-  document.getElementById('flashBackType').textContent    = word.type    || '—';
-
-  // Counter & progress
-  const total = order.length;
-  document.getElementById('flashCounter').textContent = `Thẻ ${idx + 1} / ${total}`;
-  document.getElementById('flashProgress').style.width = `${((idx + 1) / total) * 100}%`;
-}
-
-function flipCard() {
-  state.isFlipped = !state.isFlipped;
-  document.getElementById('flashcard').classList.toggle('flipped', state.isFlipped);
-}
-
-function nextCard() {
-  if (state.flashIndex < state.flashOrder.length - 1) {
-    state.flashIndex++;
-  } else {
-    state.flashIndex = 0;
-    showToast('🎉 Đã ôn hết! Bắt đầu lại từ đầu.', 'success');
-  }
-  renderFlashcard();
-}
-
-function prevCard() {
-  if (state.flashIndex > 0) {
-    state.flashIndex--;
-    renderFlashcard();
+  // 2) Try external API with timeout
+  try {
+    const url = `https://hanzi-api.vercel.app/api/lookup?word=${encodeURIComponent(query)}`;
+    const res  = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.pinyin) {
+        setField('input-pinyin',      data.pinyin);
+        setField('input-hanviet',     data.hanviet ?? '');
+        setField('input-translation', data.definition ?? '');
+        showChalkAlert('✨ Tìm thấy kết quả từ API!');
+      } else { throw new Error('No result'); }
+    } else { throw new Error('API error'); }
+  } catch {
+    // 3) Heuristic fallback
+    setField('input-hanviet', approximateHanViet(query));
+    showChalkAlert('✏️ Mạng bận / Từ mới — hãy nhập nghĩa & Pinyin thủ công!');
+  } finally {
+    resetBtn();
+    if (query.length > 0) loadCharacterToWriter(query[0]);
+    document.getElementById('input-translation')?.focus();
   }
 }
 
-function shuffleCards() {
-  for (let i = state.flashOrder.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [state.flashOrder[i], state.flashOrder[j]] = [state.flashOrder[j], state.flashOrder[i]];
-  }
-  state.flashIndex = 0;
-  renderFlashcard();
-  showToast('🔀 Đã xáo trộn thẻ!', 'info');
+function resetBtn() {
+  const btn = document.getElementById('btn-search');
+  btn.innerHTML = '🔍 Tìm';
+  btn.disabled  = false;
 }
 
-// ─────────────────────────────────────────────
-// EXPORT / IMPORT
-// ─────────────────────────────────────────────
-function exportData() {
-  const data = {
-    version:   1,
-    exportedAt: new Date().toISOString(),
-    words:     state.words,
+/** Very basic heuristic Hán-Việt approximation */
+function approximateHanViet(str) {
+  const map = {
+    "学":"học","习":"tập","老":"lão","师":"sư","国":"quốc","越":"việt","南":"nam",
+    "谢":"tạ","你":"nhĩ","好":"hảo","中":"trung","语":"ngữ","大":"đại","学":"học",
+    "人":"nhân","时":"thời","间":"gian","工":"công","作":"tác","朋":"bằng","友":"hữu"
   };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `blackboard_backup_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('📦 Đã xuất dữ liệu!', 'success');
+  return [...str].map(c => map[c] ?? '...').join(' ');
 }
 
-function importData(file) {
+/* ══════════════════════════════════════════════
+   10. ADD / EDIT WORD
+══════════════════════════════════════════════ */
+function handleAddWord() {
+  const hanzi       = getField('input-hanzi');
+  const pinyin      = getField('input-pinyin');
+  const hanviet     = getField('input-hanviet');
+  const translation = getField('input-translation');
+  const type        = getField('input-type');
+  const status      = getField('input-status');
+  const notes       = getField('input-notes');
+
+  if (!hanzi || !pinyin || !translation) {
+    showChalkAlert('⚠️ Hãy điền đầy đủ Chữ Hán, Pinyin và Nghĩa dịch!');
+    return;
+  }
+
+  const newWord = {
+    id:        `w_${Date.now()}`,
+    hanzi, pinyin,
+    hanviet:   hanviet  || 'Chưa có',
+    translation, type,
+    dateAdded: todayStr(),
+    status,
+    notes:     notes || 'Không có ghi chú'
+  };
+
+  words.unshift(newWord);
+  saveState();
+  renderWordList();
+  clearForm();
+  showChalkAlert('🎨 Đã ghi thêm 1 từ lên bảng!');
+  setupFlashcardDeck();
+  loadCharacterToWriter(hanzi[0]);
+}
+
+/* ══════════════════════════════════════════════
+   11. RENDER WORD TABLE
+══════════════════════════════════════════════ */
+function renderWordList() {
+  const tbody       = document.getElementById('word-list-tbody');
+  const q           = document.getElementById('search-query')?.value.toLowerCase().trim() ?? '';
+  const filterType  = document.getElementById('filter-type')?.value  ?? 'all';
+  const filterStat  = document.getElementById('filter-status')?.value ?? 'all';
+
+  const filtered = words.filter(w => {
+    const matchQ = !q
+      || w.hanzi.toLowerCase().includes(q)
+      || w.hanviet.toLowerCase().includes(q)
+      || w.pinyin.toLowerCase().includes(q)
+      || w.translation.toLowerCase().includes(q);
+    const matchT = filterType === 'all' || w.type === filterType;
+    const matchS = filterStat === 'all' || w.status === filterStat;
+    return matchQ && matchT && matchS;
+  });
+
+  if (!filtered.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="p-6 text-center text-gray-500 italic text-sm">
+          Chưa tìm thấy từ vựng nào phù hợp với bộ lọc.
+        </td>
+      </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(w => {
+    const pill = w.status === 'mastered'
+      ? `<span class="pill pill-mastered">Thuộc làu</span>`
+      : `<span class="pill pill-review">Cần ôn</span>`;
+
+    // Escape for inline onclick
+    const safeId = w.id.replace(/'/g, "\\'");
+    const safeHanzi = w.hanzi[0].replace(/'/g, "\\'");
+
+    return `
+      <tr>
+        <td class="word-table-td" style="padding:0.6rem 0.85rem">
+          <span class="hanzi-cell chinese-font chalk-white"
+                onclick="loadCharacterToWriter('${safeHanzi}')"
+                title="Xem nét viết chữ này">
+            ${w.hanzi}
+          </span>
+        </td>
+        <td style="padding:0.6rem 0.85rem">
+          <div class="text-yellow-200 text-sm font-semibold">${w.pinyin}</div>
+          <div class="text-xs text-teal-200">Hán Việt: ${w.hanviet}</div>
+        </td>
+        <td style="padding:0.6rem 0.85rem; max-width:14rem;">
+          <div class="text-gray-200 text-xs truncate-2">${w.translation}</div>
+          <div class="text-gray-500 text-xs italic mt-0.5 truncate">${w.notes}</div>
+        </td>
+        <td style="padding:0.6rem 0.85rem">
+          <span class="chalk-orange chalk-font text-xs block mb-1">${w.type}</span>
+          ${pill}
+        </td>
+        <td style="padding:0.6rem 0.85rem">
+          <div class="action-group">
+            <button class="action-btn" title="Sửa từ"           onclick="editWord('${safeId}')">✏️</button>
+            <button class="action-btn" title="Đổi trạng thái"   onclick="toggleWordStatus('${safeId}')">🔄</button>
+            <button class="action-btn" title="Xóa từ khỏi bảng" onclick="deleteWord('${safeId}', this)">🗑️</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════
+   12. WORD CRUD OPERATIONS
+══════════════════════════════════════════════ */
+function toggleWordStatus(id) {
+  const w = words.find(x => x.id === id);
+  if (!w) return;
+  w.status = w.status === 'mastered' ? 'review' : 'mastered';
+  saveState();
+  renderWordList();
+  showChalkAlert(`🔄 "${w.hanzi}" → ${w.status === 'mastered' ? 'Đã thuộc' : 'Cần ôn tập'}`);
+  setupFlashcardDeck();
+}
+
+function editWord(id) {
+  const w = words.find(x => x.id === id);
+  if (!w) return;
+
+  setField('input-hanzi',       w.hanzi);
+  setField('input-pinyin',      w.pinyin);
+  setField('input-hanviet',     w.hanviet);
+  setField('input-translation', w.translation);
+  setField('input-type',        w.type);
+  setField('input-status',      w.status);
+  setField('input-notes',       w.notes);
+
+  // Remove from list so re-save replaces it
+  words = words.filter(x => x.id !== id);
+  saveState();
+  renderWordList();
+  showChalkAlert('📝 Đã nạp từ vào khung chỉnh sửa!');
+  document.getElementById('input-hanzi')?.focus();
+}
+
+function deleteWord(id, el) {
+  const tr = el.closest('tr');
+  tr?.classList.add('erasing');
+  setTimeout(() => {
+    words = words.filter(w => w.id !== id);
+    saveState();
+    renderWordList();
+    showChalkAlert('🧹 Đã xóa từ vựng khỏi bảng đen!');
+    setupFlashcardDeck();
+  }, 700);
+}
+
+function resetToDefaults() {
+  if (!confirm('Bạn có chắc muốn đặt lại toàn bộ từ vựng về mặc định? Dữ liệu tự tạo sẽ bị xóa.')) return;
+  words = [...DEFAULT_WORDS];
+  saveState();
+  renderWordList();
+  showChalkAlert('🔄 Đã khôi phục dữ liệu mặc định!');
+  setupInitialWriter();
+  setupFlashcardDeck();
+}
+
+/* ══════════════════════════════════════════════
+   13. IMPORT / EXPORT JSON
+══════════════════════════════════════════════ */
+function exportData() {
+  const blob = new Blob([JSON.stringify(words, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {
+    href: url,
+    download: `hanzi_notes_${todayStr()}.json`
+  });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showChalkAlert('⬇️ Đã xuất dữ liệu thành công!');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const json = JSON.parse(e.target.result);
-      const words = json.words || json; // Support both formats
-      if (!Array.isArray(words)) throw new Error('Invalid format');
-
-      // Merge: add only words not already present
-      let added = 0;
-      words.forEach(w => {
-        if (!state.words.find(existing => existing.hanzi === w.hanzi)) {
-          state.words.unshift(w);
-          added++;
-        }
-      });
-
-      saveToStorage();
-      updateStats();
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported)) throw new Error('Bad format');
+      words = imported;
+      saveState();
       renderWordList();
-      showToast(`✦ Đã nhập ${added} từ mới!`, 'success');
-    } catch (err) {
-      showToast('❌ File không hợp lệ!', 'error');
+      setupFlashcardDeck();
+      showChalkAlert(`⬆️ Đã nhập ${imported.length} từ thành công!`);
+    } catch {
+      showChalkAlert('❌ File JSON không hợp lệ. Vui lòng kiểm tra lại!');
     }
   };
   reader.readAsText(file);
+  // Clear input so same file can be re-imported
+  event.target.value = '';
 }
 
-// ─────────────────────────────────────────────
-// FILTERS (My List tab)
-// ─────────────────────────────────────────────
-function initFilters() {
-  document.getElementById('filterType').addEventListener('change', renderWordList);
-  document.getElementById('filterDate').addEventListener('change', renderWordList);
-  document.getElementById('filterSearch').addEventListener('input', renderWordList);
+/* ══════════════════════════════════════════════
+   14. HANZI WRITER
+══════════════════════════════════════════════ */
+function setupInitialWriter() {
+  const char = words.length > 0 ? words[0].hanzi[0] : '学';
+  loadCharacterToWriter(char);
 }
 
-// ─────────────────────────────────────────────
-// EVENT LISTENERS
-// ─────────────────────────────────────────────
-function initEvents() {
-  // Search
-  document.getElementById('searchBtn').addEventListener('click', handleSearch);
-  document.getElementById('searchInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') handleSearch();
+function loadCharacterToWriter(char) {
+  const container = document.getElementById('hanzi-writer-container');
+  if (!container) return;
+
+  // Clear previous instance
+  container.innerHTML = '';
+  setText('writer-char-label', `Đang hiển thị: ${char}`);
+  setText('quiz-message', '');
+
+  try {
+    hanziWriterInstance = HanziWriter.create('hanzi-writer-container', char, {
+      width:                  145,
+      height:                 145,
+      padding:                6,
+      strokeColor:            '#fef08a',
+      radicalColor:           '#fbcfe8',
+      outlineColor:           'rgba(255,255,255,0.12)',
+      drawingColor:           '#ccfbf1',
+      showOutline:            true,
+      delayBetweenStrokes:    380,
+      strokeAnimationSpeed:   1.2,
+    });
+  } catch (e) {
+    container.innerHTML = `
+      <div class="text-center p-2">
+        <p class="chinese-font text-6xl chalk-white">${char}</p>
+        <p class="text-xs text-gray-500 mt-2">Dịch vụ ngoại tuyến</p>
+      </div>`;
+    console.warn('HanziWriter fallback:', e);
+  }
+}
+
+function playStroke() {
+  if (hanziWriterInstance) hanziWriterInstance.animateCharacter();
+}
+
+function resetStroke() {
+  if (!hanziWriterInstance) return;
+  hanziWriterInstance.cancelQuietly();
+  hanziWriterInstance.showOutline();
+  setText('quiz-message', 'Đã làm sạch bảng vẽ!');
+}
+
+function quizStroke() {
+  if (!hanziWriterInstance) return;
+  setText('quiz-message', 'Dùng ngón tay / chuột vẽ lên bảng đen…');
+  hanziWriterInstance.quiz({
+    onMistake:      () => { setText('quiz-message', '❌ Nét vẽ chưa chuẩn! Thử lại nhé.'); },
+    onCorrectStroke:() => { setText('quiz-message', '✅ Đúng nét rồi! Tiếp tục…'); },
+    onComplete:     () => { setText('quiz-message', '🎉 Xuất sắc! Bạn đã viết đúng chữ này!'); },
   });
+}
 
-  // Add to list
-  document.getElementById('addToListBtn').addEventListener('click', addPendingToList);
+/* ══════════════════════════════════════════════
+   15. FLASHCARD
+══════════════════════════════════════════════ */
+function setupFlashcardDeck() {
+  const reviewWords = words.filter(w => w.status === 'review');
 
-  // Edit result manually
-  document.getElementById('editResultBtn').addEventListener('click', () => {
-    const data = pendingWordData;
-    if (data) {
-      openManualModal(data.hanzi);
-      // Pre-fill
-      setTimeout(() => {
-        document.getElementById('manualPinyin').value  = data.pinyin  || '';
-        document.getElementById('manualMeaning').value = data.meaning || '';
-        document.getElementById('manualHanViet').value = data.hanViet || '';
-        document.getElementById('manualType').value    = data.type    || '其他';
-      }, 50);
+  if (reviewWords.length > 0) {
+    currentFlashcardIndex = Math.floor(Math.random() * reviewWords.length);
+    fillFlashcard(reviewWords[currentFlashcardIndex]);
+  } else if (words.length > 0) {
+    currentFlashcardIndex = Math.floor(Math.random() * words.length);
+    fillFlashcard(words[currentFlashcardIndex]);
+  } else {
+    fillFlashcard({
+      hanzi: '学', pinyin: 'xué', hanviet: 'học',
+      translation: 'Học tập, tiếp thu kiến thức',
+      notes: 'Hãy thêm từ mới ở bên trái nhé!'
+    });
+  }
+}
+
+function fillFlashcard(word) {
+  isCardFlipped = false;
+  document.getElementById('flashcard-inner')?.classList.remove('flashcard-flipped');
+
+  setText('card-front-hanzi',    word.hanzi);
+  setText('card-back-hanzi',     word.hanzi);
+  setText('card-back-pinyin',    word.pinyin);
+  setText('card-back-hanviet',   word.hanviet ?? '...');
+  setText('card-back-translation', word.translation);
+  setText('card-back-notes',     word.notes ?? 'Không có ghi chú thêm');
+}
+
+function toggleCardFlip() {
+  isCardFlipped = !isCardFlipped;
+  document.getElementById('flashcard-inner')?.classList.toggle('flashcard-flipped', isCardFlipped);
+}
+
+function markCardMastered(event) {
+  event.stopPropagation();
+  const reviewWords = words.filter(w => w.status === 'review');
+  if (reviewWords.length > 0) {
+    const target = reviewWords[currentFlashcardIndex % reviewWords.length];
+    if (target) {
+      const w = words.find(x => x.id === target.id);
+      if (w) {
+        w.status = 'mastered';
+        saveState();
+        renderWordList();
+        showChalkAlert('👍 Đã chuyển sang: Đã thuộc làu!');
+      }
     }
-  });
-
-  // Preview replay
-  document.getElementById('previewReplayBtn').addEventListener('click', () => {
-    if (state.previewWriter) state.previewWriter.animateCharacter();
-  });
-
-  // Word detail modal
-  document.getElementById('modalCloseBtn').addEventListener('click', closeWordDetail);
-  document.getElementById('modalDeleteBtn').addEventListener('click', deleteCurrentWord);
-  document.getElementById('modalReplayBtn').addEventListener('click', () => {
-    if (state.modalWriter) state.modalWriter.animateCharacter();
-  });
-  document.getElementById('wordDetailModal').addEventListener('click', e => {
-    if (e.target === document.getElementById('wordDetailModal')) closeWordDetail();
-  });
-
-  // Manual modal
-  document.getElementById('manualCloseBtn').addEventListener('click', closeManualModal);
-  document.getElementById('manualCancelBtn').addEventListener('click', closeManualModal);
-  document.getElementById('manualSaveBtn').addEventListener('click', saveManualWord);
-  document.getElementById('manualModal').addEventListener('click', e => {
-    if (e.target === document.getElementById('manualModal')) closeManualModal();
-  });
-
-  // Flashcard
-  document.getElementById('flashcardScene').addEventListener('click', flipCard);
-  document.getElementById('flashFlipBtn').addEventListener('click', flipCard);
-  document.getElementById('flashNextBtn').addEventListener('click', nextCard);
-  document.getElementById('flashPrevBtn').addEventListener('click', prevCard);
-  document.getElementById('flashShuffleBtn').addEventListener('click', shuffleCards);
-
-  // Keyboard shortcuts for flashcard
-  document.addEventListener('keydown', e => {
-    const activeTab = document.querySelector('.tab-panel.active')?.id;
-    if (activeTab !== 'tab-flashcard') return;
-    if (e.key === 'ArrowRight' || e.key === 'l') nextCard();
-    if (e.key === 'ArrowLeft'  || e.key === 'h') prevCard();
-    if (e.key === ' ' || e.key === 'f') { e.preventDefault(); flipCard(); }
-  });
-
-  // Export / Import
-  document.getElementById('exportBtn').addEventListener('click', exportData);
-  document.getElementById('importBtn').addEventListener('click', () => {
-    document.getElementById('importFile').click();
-  });
-  document.getElementById('importFile').addEventListener('change', e => {
-    importData(e.target.files[0]);
-    e.target.value = '';
-  });
+  } else {
+    showChalkAlert('✨ Tất cả từ vựng đã được thông thuộc!');
+  }
+  setupFlashcardDeck();
 }
 
-// ─────────────────────────────────────────────
-// KEYBOARD SHORTCUT HINT (optional polish)
-// ─────────────────────────────────────────────
-function addChalkMarkings() {
-  // Subtle chalk line decoration on the board
-  const board = document.querySelector('.chalk-board');
-  if (!board) return;
-  // Already handled via CSS ::before pseudo-element
+function markCardReview(event) {
+  event.stopPropagation();
+  showChalkAlert('🔄 Từ này sẽ tiếp tục được ôn luyện!');
+  setupFlashcardDeck();
 }
 
-// ─────────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────────
-function init() {
-  loadFromStorage();
-  initChalkCanvas();
-  initTabs();
-  initFilters();
-  initEvents();
-  updateStats();
-  addChalkMarkings();
-
-  // Default: render word list on load so stats are correct
-  // (but don't render grid until that tab is active for performance)
-
-  console.log(
-    '%c黑板 Chinese Tracker%c loaded ✦',
-    'color:#f0ece4;background:#1e2d24;font-size:16px;padding:4px 8px;font-family:serif',
-    'color:#f5e642;font-size:14px'
-  );
+function nextCard(event) {
+  event.stopPropagation();
+  setupFlashcardDeck();
 }
-
-document.addEventListener('DOMContentLoaded', init);
