@@ -3,285 +3,354 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>黑板 · Chinese Learning Tracker</title>
-
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&family=Ma+Shan+Zheng&display=swap" rel="stylesheet" />
+  <meta name="description" content="Sổ Tay Hán Ngữ — Ứng dụng học tiếng Trung cho người Việt" />
+  <title>📝 Sổ Tay Hán Ngữ · Chalkboard Edition</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Hanzi Writer -->
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Ma+Shan+Zheng&family=Zhi+Mang+Xing&family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Hanzi Writer — Stroke Animation & Writing Quiz -->
   <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
 
-  <!-- Custom Styles -->
+  <!-- App Styles -->
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body class="min-h-screen">
 
-  <!-- ═══ CHALK DUST PARTICLES ═══ -->
-  <canvas id="chalkCanvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+<body class="p-2 sm:p-5">
 
-  <!-- ═══ TOP TRAY / HEADER ═══ -->
-  <header class="chalk-tray relative z-10 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-4">
-      <div class="board-eraser"></div>
-      <div>
-        <h1 class="chalk-title text-3xl">黑板 · Bảng Đen</h1>
-        <p class="chalk-subtitle text-sm opacity-70">Chinese Learning Tracker — Dành cho người Việt</p>
+<div class="max-w-7xl mx-auto">
+
+  <!-- ══════════════════════════════════════
+       MAIN CHALKBOARD FRAME
+  ══════════════════════════════════════ -->
+  <div class="wooden-frame chalkboard-bg p-4 sm:p-8 relative overflow-hidden mb-4">
+    <div class="dust-ledge"></div>
+
+    <!-- ─── HEADER ─── -->
+    <header class="flex flex-col md:flex-row justify-between items-center
+                   border-b-2 border-dashed border-white/15 pb-5 mb-6 gap-4">
+      <div class="text-center md:text-left">
+        <h1 class="text-3xl sm:text-4xl xl:text-5xl font-bold chalk-white chalk-font tracking-wide
+                   flex flex-wrap items-center justify-center md:justify-start gap-3">
+          <span>📝 Sổ Tay Hán Ngữ</span>
+          <span class="text-xs border border-yellow-300/70 text-yellow-200/80 px-2 py-0.5
+                       rounded -rotate-2 chalk-font font-normal inline-block">
+            Chalkboard v2.0
+          </span>
+        </h1>
+        <p class="text-xs sm:text-sm text-gray-400 mt-1.5">
+          Lộ trình học từ vựng thông minh cho người Việt &nbsp;•&nbsp; Tự học &amp; Ôn tập dễ dàng
+        </p>
       </div>
-    </div>
-    <div class="flex items-center gap-3">
-      <!-- Stats pills -->
-      <div class="chalk-stat-pill" id="statTotal">
-        <span class="stat-num" id="totalCount">0</span>
-        <span class="stat-label">từ đã học</span>
+
+      <!-- Chalk tray indicator -->
+      <div class="flex gap-3 bg-black/30 px-3 py-2 rounded-lg border border-white/10 text-xs text-gray-400 flex-wrap justify-center">
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-white/90 inline-block"></span>Phấn Trắng</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-yellow-200 inline-block"></span>Phấn Vàng</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-pink-200 inline-block"></span>Phấn Hồng</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-teal-200 inline-block"></span>Phấn Xanh</span>
       </div>
-      <div class="chalk-stat-pill accent-yellow" id="statToday">
-        <span class="stat-num" id="todayCount">0</span>
-        <span class="stat-label">hôm nay</span>
+    </header>
+
+    <!-- ─── STAT CARDS ─── -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-7">
+      <div class="stat-card chalk-border">
+        <p class="stat-label text-gray-400">Tổng số từ học</p>
+        <p class="stat-value chalk-white" id="stat-total">0</p>
+        <p class="stat-sub text-gray-500">Từ vựng đã thêm</p>
       </div>
-      <!-- Backup buttons -->
-      <button class="chalk-icon-btn" id="exportBtn" title="Xuất dữ liệu (Export JSON)">⬇</button>
-      <button class="chalk-icon-btn" id="importBtn" title="Nhập dữ liệu (Import JSON)">⬆</button>
-      <input type="file" id="importFile" accept=".json" class="hidden" />
-    </div>
-  </header>
-
-  <!-- ═══ NAVIGATION TABS ═══ -->
-  <nav class="chalk-nav relative z-10 flex gap-0 px-6 pt-3">
-    <button class="chalk-tab active" data-tab="add">✏ Thêm từ mới</button>
-    <button class="chalk-tab" data-tab="mylist">📋 Danh sách của tôi</button>
-    <button class="chalk-tab" data-tab="flashcard">🃏 Ôn luyện</button>
-  </nav>
-
-  <!-- ═══ MAIN BOARD ═══ -->
-  <main class="chalk-board relative z-10 mx-6 mb-6 p-0 overflow-hidden">
-
-    <!-- ──────── TAB: ADD WORD ──────── -->
-    <section id="tab-add" class="tab-panel active p-8">
-      <div class="board-section-label">Viết lên bảng — Thêm từ mới</div>
-
-      <div class="flex flex-col lg:flex-row gap-8">
-        <!-- Search / Input area -->
-        <div class="flex-1">
-          <div class="chalk-input-group mb-6">
-            <label class="chalk-label">Nhập chữ Hán / Pinyin</label>
-            <div class="flex gap-3 mt-2">
-              <input type="text" id="searchInput" class="chalk-input flex-1" placeholder="例: 学习, xuéxí, học tập..." />
-              <button id="searchBtn" class="chalk-btn-primary">🔍 Tra cứu</button>
-            </div>
-          </div>
-
-          <!-- Result card (shown after fetch) -->
-          <div id="resultCard" class="chalk-result-card hidden">
-            <div class="result-hanzi" id="resultHanzi">—</div>
-            <div class="result-meta">
-              <div class="result-row">
-                <span class="result-key">Pinyin:</span>
-                <span class="result-val accent-blue" id="resultPinyin">—</span>
-              </div>
-              <div class="result-row">
-                <span class="result-key">Nghĩa (VI):</span>
-                <span class="result-val accent-yellow" id="resultMeaning">—</span>
-              </div>
-              <div class="result-row">
-                <span class="result-key">Hán Việt:</span>
-                <span class="result-val accent-pink" id="resultHanViet">—</span>
-              </div>
-              <div class="result-row">
-                <span class="result-key">Từ loại:</span>
-                <span class="result-val" id="resultType">—</span>
-              </div>
-            </div>
-            <div class="mt-4 flex gap-3">
-              <button id="addToListBtn" class="chalk-btn-primary">📌 Thêm vào danh sách</button>
-              <button id="editResultBtn" class="chalk-btn-secondary">✏ Sửa thủ công</button>
-            </div>
-          </div>
-
-          <!-- Loading state -->
-          <div id="searchLoading" class="hidden flex-col items-center justify-center py-12 gap-4">
-            <div class="chalk-spinner"></div>
-            <p class="chalk-text opacity-60">Đang tra cứu từ điển...</p>
-          </div>
-        </div>
-
-        <!-- Stroke preview area -->
-        <div class="lg:w-72">
-          <div class="board-section-label">Nét bút</div>
-          <div class="stroke-preview-area" id="strokePreviewArea">
-            <div id="strokePreviewWriter" class="mx-auto" style="width:180px;height:180px;"></div>
-            <p class="chalk-text text-center mt-3 opacity-50 text-sm">Tra cứu chữ để xem hoạt ảnh nét bút</p>
-          </div>
-          <button id="previewReplayBtn" class="chalk-btn-secondary w-full mt-3 hidden">▶ Phát lại</button>
-        </div>
+      <div class="stat-card chalk-border-yellow">
+        <p class="stat-label text-yellow-200/70">Thêm hôm nay</p>
+        <p class="stat-value chalk-yellow" id="stat-today">0</p>
+        <p class="stat-sub text-yellow-200/50">Tích lũy hàng ngày</p>
+      </div>
+      <div class="stat-card chalk-border-mint">
+        <p class="stat-label text-teal-200/70">Đã thuộc làu</p>
+        <p class="stat-value chalk-mint" id="stat-mastered">0</p>
+        <p class="stat-sub text-teal-200/50" id="stat-mastered-pct">0% hoàn thành</p>
+      </div>
+      <div class="stat-card chalk-border-pink">
+        <p class="stat-label text-pink-200/70">Cần ôn tập</p>
+        <p class="stat-value chalk-pink" id="stat-review">0</p>
+        <p class="stat-sub text-pink-200/50">Flashcard đợi bạn</p>
       </div>
     </section>
 
-    <!-- ──────── TAB: MY LIST ──────── -->
-    <section id="tab-mylist" class="tab-panel p-8">
-      <!-- Filters -->
-      <div class="flex flex-wrap items-center gap-4 mb-6">
-        <div class="board-section-label">Danh sách của tôi</div>
-        <div class="flex gap-3 ml-auto flex-wrap">
-          <select id="filterType" class="chalk-select">
-            <option value="">Tất cả từ loại</option>
-            <option value="名词">名词 Danh từ</option>
-            <option value="动词">动词 Động từ</option>
-            <option value="形容词">形容词 Tính từ</option>
-            <option value="副词">副词 Phó từ</option>
-            <option value="介词">介词 Giới từ</option>
-            <option value="连词">连词 Liên từ</option>
-            <option value="数词">数词 Số từ</option>
-            <option value="量词">量词 Lượng từ</option>
-            <option value="其他">其他 Khác</option>
-          </select>
-          <select id="filterDate" class="chalk-select">
-            <option value="newest">Mới nhất trước</option>
-            <option value="oldest">Cũ nhất trước</option>
-            <option value="today">Hôm nay</option>
-            <option value="week">Tuần này</option>
-          </select>
-          <input type="text" id="filterSearch" class="chalk-input" placeholder="Tìm kiếm..." style="width:160px" />
-        </div>
-      </div>
+    <!-- ─── MAIN GRID ─── -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-      <!-- Word list grid -->
-      <div id="wordListGrid" class="word-grid">
-        <!-- Populated by JS -->
-      </div>
+      <!-- ════════════════════════════
+           LEFT COLUMN  (5/12)
+      ════════════════════════════ -->
+      <div class="lg:col-span-5 flex flex-col gap-5">
 
-      <!-- Empty state -->
-      <div id="emptyState" class="hidden flex-col items-center justify-center py-20 gap-4">
-        <div class="text-8xl opacity-20" style="font-family:'Ma Shan Zheng',serif">空</div>
-        <p class="chalk-text opacity-50">Chưa có từ nào. Hãy thêm từ đầu tiên của bạn!</p>
-      </div>
-    </section>
+        <!-- ── ADD / EDIT FORM ── -->
+        <div class="panel">
+          <h2 class="text-lg chalk-font chalk-yellow font-bold mb-4 flex items-center gap-2">
+            🖍️ Thêm Từ Vựng Mới
+          </h2>
 
-    <!-- ──────── TAB: FLASHCARD ──────── -->
-    <section id="tab-flashcard" class="tab-panel p-8">
-      <div class="board-section-label mb-6">Ôn luyện — Flashcard</div>
-
-      <!-- No words state -->
-      <div id="flashcardEmpty" class="hidden flex-col items-center justify-center py-20 gap-4">
-        <div class="text-8xl opacity-20" style="font-family:'Ma Shan Zheng',serif">練</div>
-        <p class="chalk-text opacity-50">Cần ít nhất 1 từ trong danh sách để ôn luyện.</p>
-      </div>
-
-      <!-- Flashcard UI -->
-      <div id="flashcardUI" class="hidden flex-col items-center gap-8">
-        <!-- Progress -->
-        <div class="chalk-progress-bar">
-          <div class="chalk-progress-fill" id="flashProgress"></div>
-        </div>
-        <p class="chalk-text text-sm opacity-60" id="flashCounter">Thẻ 1 / 1</p>
-
-        <!-- Card -->
-        <div class="flashcard-scene" id="flashcardScene">
-          <div class="flashcard" id="flashcard">
-            <!-- Front -->
-            <div class="flashcard-face flashcard-front">
-              <div class="flashcard-hanzi" id="flashFrontHanzi">—</div>
-              <p class="chalk-text text-sm opacity-50 mt-4">Nhấn để lật thẻ</p>
+          <div class="space-y-3">
+            <!-- Hanzi search row -->
+            <div>
+              <label class="input-label">Chữ Hán (Giản / Phồn thể):</label>
+              <div class="flex gap-2">
+                <input type="text" id="input-hanzi"
+                       placeholder="Ví dụ: 学习"
+                       class="flex-1 px-3 py-2 text-sm"
+                       onkeydown="if(event.key==='Enter') handleAutoFetch()" />
+                <button class="btn btn-search" id="btn-search" onclick="handleAutoFetch()">
+                  🔍 Tìm
+                </button>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                Hệ thống hỗ trợ tra từ tự động Hán‑Việt &amp; Pinyin!
+              </p>
             </div>
-            <!-- Back -->
-            <div class="flashcard-face flashcard-back">
-              <div class="flashcard-pinyin accent-blue" id="flashBackPinyin">—</div>
-              <div class="flashcard-meaning accent-yellow" id="flashBackMeaning">—</div>
-              <div class="flashcard-hanviet accent-pink" id="flashBackHanViet">—</div>
-              <div class="flashcard-type" id="flashBackType">—</div>
+
+            <!-- Manual / auto-filled fields -->
+            <div class="bg-black/20 p-3 rounded-lg border border-dashed border-white/10 space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-yellow-200/70 font-bold flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block animate-pulse"></span>
+                  Thông Tin Từ Vựng:
+                </span>
+                <span class="text-xs text-gray-500 italic">Có thể chỉnh sửa thủ công</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="input-label">Phiên âm Pinyin:</label>
+                  <input type="text" id="input-pinyin" placeholder="xuéxí" class="px-2 py-1.5 text-xs text-yellow-100" />
+                </div>
+                <div>
+                  <label class="input-label">Hán Việt:</label>
+                  <input type="text" id="input-hanviet" placeholder="học tập" class="px-2 py-1.5 text-xs text-yellow-100" />
+                </div>
+              </div>
+
+              <div>
+                <label class="input-label">Nghĩa tiếng Việt:</label>
+                <input type="text" id="input-translation" placeholder="học tập, học hỏi" class="px-2 py-1.5 text-xs" />
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="input-label">Loại từ:</label>
+                  <select id="input-type" class="px-2 py-1.5 text-xs">
+                    <option value="Danh từ">Danh từ (Noun)</option>
+                    <option value="Động từ">Động từ (Verb)</option>
+                    <option value="Tính từ">Tính từ (Adj)</option>
+                    <option value="Phó từ">Phó từ (Adv)</option>
+                    <option value="Cụm từ">Cụm từ (Phrase)</option>
+                    <option value="Khác">Khác (Other)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="input-label">Trạng thái:</label>
+                  <select id="input-status" class="px-2 py-1.5 text-xs">
+                    <option value="review">Cần ôn tập 🔄</option>
+                    <option value="mastered">Đã thuộc làu 👍</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="input-label">Ghi chú / Ví dụ minh họa:</label>
+                <textarea id="input-notes" rows="2"
+                          class="px-2 py-1.5 text-xs text-gray-300"
+                          placeholder="Ví dụ: 我努力学习。(Tôi nỗ lực học tập)"></textarea>
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <button class="btn btn-primary flex-1" onclick="handleAddWord()">
+                💾 Lưu vào Bảng Đen
+              </button>
+              <button class="btn btn-ghost" onclick="clearForm()">Xóa Form</button>
             </div>
           </div>
         </div>
 
-        <!-- Controls -->
-        <div class="flex gap-4 items-center">
-          <button class="chalk-btn-secondary" id="flashPrevBtn">← Trước</button>
-          <button class="chalk-btn-primary" id="flashFlipBtn">🔄 Lật thẻ</button>
-          <button class="chalk-btn-secondary" id="flashNextBtn">Tiếp →</button>
+        <!-- ── STROKE ORDER / HANZI WRITER ── -->
+        <div class="panel relative">
+          <h2 class="text-lg chalk-font chalk-mint font-bold mb-3 flex items-center justify-between flex-wrap gap-2">
+            <span>✍️ Tập Viết Chữ Hán</span>
+            <span id="writer-char-label" class="text-xs text-gray-400 italic font-normal chalk-font">Đang hiển thị: —</span>
+          </h2>
+
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-5 py-1">
+            <!-- Writer canvas -->
+            <div class="writer-box w-[165px] h-[165px] flex-shrink-0">
+              <div id="hanzi-writer-container" class="w-[145px] h-[145px] flex items-center justify-center relative">
+                <!-- Grid guide lines (absolute overlay) -->
+                <div class="absolute inset-0 pointer-events-none opacity-20">
+                  <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <line x1="0"   y1="50"  x2="100" y2="50"  stroke="#fff" stroke-dasharray="4" stroke-width="0.6"/>
+                    <line x1="50"  y1="0"   x2="50"  y2="100" stroke="#fff" stroke-dasharray="4" stroke-width="0.6"/>
+                    <line x1="0"   y1="0"   x2="100" y2="100" stroke="#fff" stroke-dasharray="2" stroke-width="0.3"/>
+                    <line x1="100" y1="0"   x2="0"   y2="100" stroke="#fff" stroke-dasharray="2" stroke-width="0.3"/>
+                  </svg>
+                </div>
+                <div id="writer-fallback" class="text-center text-xs text-gray-500 p-2">
+                  Nhập từ để tập viết nét chữ Hán
+                </div>
+              </div>
+            </div>
+
+            <!-- Writer controls -->
+            <div class="flex flex-col gap-2 w-full sm:w-36">
+              <button class="btn btn-mint" onclick="playStroke()">▶️ Tự động viết nét</button>
+              <button class="btn btn-yellow" onclick="quizStroke()">✏️ Quiz: Vẽ nét (Quiz)</button>
+              <button class="btn btn-red" onclick="resetStroke()">🔄 Làm mới khung</button>
+            </div>
+          </div>
+
+          <p id="quiz-message" class="text-center text-xs chalk-font chalk-yellow mt-2 min-h-[1rem]"></p>
         </div>
-        <button class="chalk-btn-secondary text-sm opacity-60" id="flashShuffleBtn">🔀 Xáo trộn</button>
-      </div>
-    </section>
 
-  </main>
+      </div><!-- /left column -->
 
-  <!-- ═══ WORD DETAIL MODAL ═══ -->
-  <div id="wordDetailModal" class="chalk-modal-overlay hidden">
-    <div class="chalk-modal">
-      <button class="modal-close-btn" id="modalCloseBtn">✕</button>
-      <div class="modal-hanzi" id="modalHanzi">—</div>
+      <!-- ════════════════════════════
+           RIGHT COLUMN  (7/12)
+      ════════════════════════════ -->
+      <div class="lg:col-span-7 flex flex-col gap-5">
 
-      <!-- Stroke animation -->
-      <div class="flex justify-center my-4">
-        <div id="modalStrokeWriter" style="width:200px;height:200px;"></div>
-      </div>
-      <button class="chalk-btn-secondary w-full mb-4" id="modalReplayBtn">▶ Phát lại hoạt ảnh</button>
+        <!-- ── FLASHCARD ── -->
+        <div class="panel">
+          <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <h2 class="text-lg chalk-font chalk-pink font-bold flex items-center gap-2">
+              🃏 Thẻ Học Flashcard
+            </h2>
+            <span class="text-xs text-gray-400" id="flashcard-count">Đang ôn: 0 từ</span>
+          </div>
 
-      <div class="modal-details">
-        <div class="result-row"><span class="result-key">Pinyin:</span><span class="result-val accent-blue" id="modalPinyin">—</span></div>
-        <div class="result-row"><span class="result-key">Nghĩa (VI):</span><span class="result-val accent-yellow" id="modalMeaning">—</span></div>
-        <div class="result-row"><span class="result-key">Hán Việt:</span><span class="result-val accent-pink" id="modalHanViet">—</span></div>
-        <div class="result-row"><span class="result-key">Từ loại:</span><span class="result-val" id="modalType">—</span></div>
-        <div class="result-row"><span class="result-key">Ngày thêm:</span><span class="result-val opacity-60" id="modalDate">—</span></div>
-      </div>
-      <button class="chalk-btn-danger w-full mt-4" id="modalDeleteBtn">🗑 Xóa khỏi danh sách</button>
-    </div>
-  </div>
+          <!-- Card flip area -->
+          <div class="flashcard-container w-full h-52 sm:h-56 relative cursor-pointer" onclick="toggleCardFlip()">
+            <div id="flashcard-inner" class="flashcard-inner w-full h-full">
 
-  <!-- ═══ MANUAL ENTRY MODAL ═══ -->
-  <div id="manualModal" class="chalk-modal-overlay hidden">
-    <div class="chalk-modal">
-      <button class="modal-close-btn" id="manualCloseBtn">✕</button>
-      <h2 class="chalk-title text-xl mb-1">✏ Nhập thủ công</h2>
-      <p class="chalk-text opacity-60 text-sm mb-6">Không tìm thấy từ tự động. Hãy điền thông tin thủ công.</p>
+              <!-- Front -->
+              <div class="flashcard-face bg-[#1e2d22] flex flex-col justify-between items-center text-center p-4">
+                <span class="text-xs text-pink-200/40 uppercase tracking-widest self-start chalk-font">
+                  Mặt chữ Hán — Click để lật
+                </span>
+                <div class="chinese-font text-6xl sm:text-7xl chalk-white tracking-widest" id="card-front-hanzi">学</div>
+                <span class="text-xs text-gray-500">Nhấn vào để xem nghĩa &amp; phiên âm</span>
+              </div>
 
-      <div class="flex flex-col gap-4">
-        <div>
-          <label class="chalk-label">Chữ Hán <span class="text-red-400">*</span></label>
-          <input type="text" id="manualHanzi" class="chalk-input w-full mt-1" placeholder="例: 学习" />
+              <!-- Back -->
+              <div class="flashcard-face flashcard-face--back bg-[#1a2820] flex flex-col justify-between p-4">
+                <span class="text-xs text-teal-200/40 uppercase tracking-widest chalk-font">Mặt giải nghĩa</span>
+                <div class="text-center space-y-1.5 my-auto">
+                  <p class="chinese-font text-3xl chalk-white" id="card-back-hanzi">学习</p>
+                  <p class="text-xl chalk-yellow chalk-font" id="card-back-pinyin">xuéxí</p>
+                  <p class="text-xs font-semibold text-teal-200 tracking-wide">
+                    Hán Việt: <span class="text-yellow-100" id="card-back-hanviet">học tập</span>
+                  </p>
+                  <p class="text-sm text-white font-medium" id="card-back-translation">Học, nghiên cứu, học tập</p>
+                  <p class="text-xs text-gray-400 italic" id="card-back-notes">Ví dụ: 我学习汉语</p>
+                </div>
+                <span class="text-xs text-gray-500 text-center">Nhấn để lật lại</span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Card controls -->
+          <div class="flex gap-2 mt-4 items-center">
+            <button class="btn btn-teal-card" onclick="markCardMastered(event)">👍 Đã thuộc làu</button>
+            <button class="btn btn-next-card" onclick="nextCard(event)">Đổi Thẻ ➡️</button>
+            <button class="btn btn-pink-card" onclick="markCardReview(event)">🔄 Cần ôn thêm</button>
+          </div>
         </div>
-        <div>
-          <label class="chalk-label">Pinyin <span class="text-red-400">*</span></label>
-          <input type="text" id="manualPinyin" class="chalk-input w-full mt-1" placeholder="例: xuéxí" />
-        </div>
-        <div>
-          <label class="chalk-label">Nghĩa tiếng Việt <span class="text-red-400">*</span></label>
-          <input type="text" id="manualMeaning" class="chalk-input w-full mt-1" placeholder="例: học tập" />
-        </div>
-        <div>
-          <label class="chalk-label">Hán Việt</label>
-          <input type="text" id="manualHanViet" class="chalk-input w-full mt-1" placeholder="例: Học Tập" />
-        </div>
-        <div>
-          <label class="chalk-label">Từ loại</label>
-          <select id="manualType" class="chalk-select w-full mt-1">
-            <option value="其他">其他 Khác</option>
-            <option value="名词">名词 Danh từ</option>
-            <option value="动词">动词 Động từ</option>
-            <option value="形容词">形容词 Tính từ</option>
-            <option value="副词">副词 Phó từ</option>
-            <option value="介词">介词 Giới từ</option>
-            <option value="连词">连词 Liên từ</option>
-            <option value="数词">数词 Số từ</option>
-            <option value="量词">量词 Lượng từ</option>
-          </select>
-        </div>
-      </div>
-      <div class="flex gap-3 mt-6">
-        <button class="chalk-btn-primary flex-1" id="manualSaveBtn">📌 Thêm vào danh sách</button>
-        <button class="chalk-btn-secondary" id="manualCancelBtn">Hủy</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- ═══ TOAST NOTIFICATION ═══ -->
-  <div id="toast" class="chalk-toast hidden"></div>
+        <!-- ── WORD DATABASE ── -->
+        <div class="panel flex flex-col flex-1">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 flex-wrap">
+            <h2 class="text-lg chalk-font chalk-white font-bold">
+              🗂️ Danh Sách Từ Vựng
+            </h2>
 
-  <!-- App Logic -->
-  <script src="app.js"></script>
+            <!-- Search & filter controls -->
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+              <input type="search" id="search-query" oninput="renderWordList()"
+                     placeholder="Tìm từ hoặc Hán Việt…"
+                     class="px-2.5 py-1.5 text-xs w-full sm:w-40" />
+
+              <select id="filter-type" onchange="renderWordList()" class="px-2 py-1.5 text-xs">
+                <option value="all">Tất cả loại từ</option>
+                <option value="Danh từ">Danh từ</option>
+                <option value="Động từ">Động từ</option>
+                <option value="Tính từ">Tính từ</option>
+                <option value="Phó từ">Phó từ</option>
+                <option value="Cụm từ">Cụm từ</option>
+                <option value="Khác">Khác</option>
+              </select>
+
+              <select id="filter-status" onchange="renderWordList()" class="px-2 py-1.5 text-xs">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="review">Cần ôn tập</option>
+                <option value="mastered">Đã thuộc</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Scrollable table -->
+          <div class="word-table-wrap">
+            <table class="word-table">
+              <thead>
+                <tr>
+                  <th class="text-left">Chữ Hán</th>
+                  <th class="text-left">Phát âm &amp; Hán Việt</th>
+                  <th class="text-left">Nghĩa tiếng Việt</th>
+                  <th class="text-left">Nhãn</th>
+                  <th class="text-right">Tác vụ</th>
+                </tr>
+              </thead>
+              <tbody id="word-list-tbody">
+                <!-- Rendered by JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bottom ops bar -->
+          <div class="data-ops">
+            <span class="data-ops-tip">
+              💡 Click vào chữ Hán để mở bảng viết nét &nbsp;|&nbsp; Dữ liệu lưu tự động trên trình duyệt
+            </span>
+            <div class="flex gap-2 flex-shrink-0">
+              <button class="btn btn-ghost text-xs py-1 px-2" onclick="exportData()">⬇ Xuất JSON</button>
+              <label class="btn btn-ghost text-xs py-1 px-2 cursor-pointer">
+                ⬆ Nhập JSON
+                <input type="file" accept=".json" onchange="importData(event)" class="hidden" />
+              </label>
+              <button class="btn text-xs py-1 px-2 text-red-400/60 hover:text-red-400"
+                      style="background:none;border:none;" onclick="resetToDefaults()">
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /right column -->
+    </div><!-- /main grid -->
+
+  </div><!-- /chalkboard frame -->
+
+</div><!-- /max-w -->
+
+<!-- ── TOAST NOTIFICATION ── -->
+<div id="chalk-alert">
+  <span>📢</span>
+  <span id="alert-message">Xin chào!</span>
+</div>
+
+<!-- App Logic -->
+<script src="app.js"></script>
 </body>
 </html>
